@@ -1,10 +1,17 @@
-// AutoBot - macro recorder / auto-play bot for Geometry Dash (Geode, GD 2.2074)
+// AutoBot - macro recorder / auto-play bot for Geometry Dash (Geode)
 
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/PauseLayer.hpp>
 #include <Geode/modify/GJGameLevel.hpp>
+#include <Geode/binding/ButtonSprite.hpp>
+#include <Geode/binding/CCMenuItemSpriteExtra.hpp>
+#include <Geode/binding/GJEffectManager.hpp>
+#include <Geode/binding/GJGameLevel.hpp>
+#include <Geode/binding/PlayerObject.hpp>
+#include <Geode/binding/GameObject.hpp>
+#include <Geode/binding/GJBaseGameLayer.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -96,7 +103,7 @@ class $modify(BotBaseLayer, GJBaseGameLayer) {
 		GJBaseGameLayer::handleButton(down, button, isPlayer1);
 	}
 
-	void processCommands(float dt) {
+	void processCommands(float dt, bool isHalfTick, bool isLastTick) {
 		if (Bot::mode == BotMode::Replay && Bot::isPlayLayer(this)) {
 			int frame = Bot::frameOf(this);
 			while (Bot::cursor < Bot::actions.size() && Bot::actions[Bot::cursor].frame <= frame) {
@@ -105,7 +112,7 @@ class $modify(BotBaseLayer, GJBaseGameLayer) {
 				GJBaseGameLayer::handleButton(a.down, a.button, a.player1);
 			}
 		}
-		GJBaseGameLayer::processCommands(dt);
+		GJBaseGameLayer::processCommands(dt, isHalfTick, isLastTick);
 	}
 };
 
