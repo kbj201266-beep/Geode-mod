@@ -13,9 +13,8 @@
 #include <Geode/binding/GameObject.hpp>
 #include <Geode/binding/GJBaseGameLayer.hpp>
 
-#include <filesystem>
-#include <fstream>
 #include <sstream>
+#include <string>
 #include <vector>
 
 using namespace geode::prelude;
@@ -50,35 +49,33 @@ namespace Bot {
 		return PlayLayer::get() != nullptr && static_cast<GJBaseGameLayer*>(PlayLayer::get()) == layer;
 	}
 
-	inline std::filesystem::path pathFor(GJGameLevel* level) {
-		auto dir = Mod::get()->getSaveDir() / "macros";
-		std::error_code ec;
-		std::filesystem::create_directories(dir, ec);
-		std::string n = level->m_levelName;
+	// macros are stored in the mod's saved data (no file paths needed)
+	inline std::string keyFor(GJGameLevel* level) {
+		std::string n = std::string(level->m_levelName);
 		for (auto& c : n) {
 			if (!std::isalnum(static_cast<unsigned char>(c))) c = '_';
 		}
-		return dir / fmt::format("{}_{}.txt", level->m_levelID.value(), n);
+		return fmt::format("macro_{}_{}", level->m_levelID.value(), n);
 	}
 
 	inline bool save(GJGameLevel* level) {
 		if (actions.empty()) return false;
-		std::ofstream out(pathFor(level));
-		if (!out) return false;
-		out << "# frame button down player1\n";
+		std::ostringstream out;
 		for (auto const& a : actions) {
 			out << a.frame << ' ' << a.button << ' ' << (a.down ? 1 : 0) << ' ' << (a.player1 ? 1 : 0) << '\n';
 		}
+		Mod::get()->setSavedValue<std::string>(keyFor(level), out.str());
 		return true;
 	}
 
 	inline bool load(GJGameLevel* level) {
-		std::ifstream in(pathFor(level));
-		if (!in) return false;
+		std::string text = Mod::get()->getSavedValue<std::string>(keyFor(level), "");
+		if (text.empty()) return false;
+		std::istringstream in(text);
 		std::vector<BotAction> loaded;
 		std::string line;
 		while (std::getline(in, line)) {
-			if (line.empty() || line[0] == '#') continue;
+			if (line.empty()) continue;
 			std::istringstream ss(line);
 			int f, b, d, p;
 			if (ss >> f >> b >> d >> p) loaded.push_back({f, b, d != 0, p != 0});
