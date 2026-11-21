@@ -14,6 +14,12 @@
 			"default": true,
 			"name": "Anti-death safety net (Replay only)",
 			"description": "While replaying, ignore deaths so a tiny desync does not kill the run. Progress is never saved while the bot is active."
+		},
+		"show-hitboxes": {
+			"type": "bool",
+			"default": true,
+			"name": "Show hitboxes",
+			"description": "Draw hitboxes (red = hazard, blue = solid, green = orb/pad/portal) and the player's path."
 		}
 	}
 }
