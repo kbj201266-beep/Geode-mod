@@ -82,9 +82,8 @@ namespace Bot {
 		ccColor4F greenBorder{0.2f, 1.f, 0.2f, 1.f};
 
 		if (layer->m_objects) {
-			CCObject* o = nullptr;
-			CCARRAY_FOREACH(layer->m_objects, o) {
-				auto obj = static_cast<GameObject*>(o);
+						for (unsigned int i = 0; i < layer->m_objects->count(); ++i) {
+				auto obj = static_cast<GameObject*>(layer->m_objects->objectAtIndex(i));
 				float dx = obj->getPositionX() - px;
 				if (dx < -150.f || dx > 450.f) continue;
 
