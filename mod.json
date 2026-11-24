@@ -1,13 +1,16 @@
 {
-	"geode": "6.0.0-beta.1",
+	"geode": "6.0.0-beta.2",
 	"gd": {
-		"android": "2.2091"
+		"win": "*",
+		"android": "*",
+		"mac": "*",
+		"ios": "*"
 	},
 	"id": "user.autobot",
 	"name": "AutoBot",
 	"version": "v1.0.0",
 	"developer": "you",
-	"description": "Macro recorder / auto-play bot with an optional anti-death safety net. Never submits progress while active.",
+	"description": "Macro bot, icon hack, speed hack, layout mod, hitboarder, physics TPS and frame perfect counter. Never saves progress while the bot is active.",
 	"settings": {
 		"safety-net": {
 			"type": "bool",
@@ -19,7 +22,7 @@
 			"type": "bool",
 			"default": true,
 			"name": "Show hitboxes",
-			"description": "Draw hitboxes (red = hazard, blue = solid, green = orb/pad/portal) and the player's path."
+			"description": "Draw hitboxes while playing."
 		}
 	}
 }
