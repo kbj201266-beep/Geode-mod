@@ -4,10 +4,14 @@
 #include <Geode/binding/ButtonSprite.hpp>
 #include <Geode/binding/CCMenuItemSpriteExtra.hpp>
 
+#include <algorithm>
+
 using namespace geode::prelude;
 
 namespace AutoBotUI {
     constexpr int Z_ORDER = 1000;
+    constexpr float PANEL_WIDTH = 700.f;
+    constexpr float PANEL_HEIGHT = 420.f;
 
     enum class Category {
         Level,
@@ -23,11 +27,11 @@ namespace AutoBotUI {
         bool showHitboxesOnDeath = false;
         bool hitboxTrail = true;
         bool showTrajectory = false;
+        bool pathfinder = false;
+        bool framePerfect = false;
         bool accuratePercentage = true;
         bool macroRecord = false;
         bool macroReplay = false;
-        bool pathfinder = false;
-        bool framePerfect = false;
         bool speedHack = false;
         bool practiceMusicSync = false;
         bool iconHack = false;
@@ -37,54 +41,52 @@ namespace AutoBotUI {
 
     inline State state;
 
-    class AutoBotPanel final : public CCLayerColor {
+    static CCLabelBMFont* label(
+        char const* text,
+        float scale = 0.46f
+    ) {
+        auto result = CCLabelBMFont::create(
+            text,
+            "bigFont.fnt"
+        );
+
+        result->setScale(scale);
+        result->setAnchorPoint({0.f, 0.5f});
+
+        return result;
+    }
+
+    static ButtonSprite* button(
+        char const* text,
+        float scale = 0.42f
+    ) {
+        return ButtonSprite::create(
+            text,
+            "goldFont.fnt",
+            "GJ_button_01.png",
+            scale
+        );
+    }
+
+    class Panel final : public CCLayerColor {
     private:
         Category m_category = Category::Level;
         CCNode* m_content = nullptr;
 
-        static ButtonSprite* makeButton(
-            char const* text,
-            float scale = 0.52f
-        ) {
-            return ButtonSprite::create(
-                text,
-                "goldFont.fnt",
-                "GJ_button_01.png",
-                scale
-            );
-        }
-
-        static CCLabelBMFont* makeLabel(
-            char const* text,
-            float scale = 0.55f
-        ) {
-            auto label = CCLabelBMFont::create(
-                text,
-                "bigFont.fnt"
-            );
-
-            label->setScale(scale);
-            label->setAnchorPoint({0.f, 0.5f});
-
-            return label;
-        }
-
-        void addCategoryButton(
+        void addCategory(
             CCMenu* menu,
             char const* text,
             Category category,
             float y
         ) {
-            auto button = makeButton(text, 0.48f);
-
             auto item = CCMenuItemSpriteExtra::create(
-                button,
+                button(text, 0.38f),
                 this,
-                menu_selector(AutoBotPanel::onCategory)
+                menu_selector(Panel::onCategory)
             );
 
             item->setTag(static_cast<int>(category));
-            item->setPosition({125.f, y});
+            item->setPosition({105.f, y});
 
             menu->addChild(item);
         }
@@ -94,308 +96,268 @@ namespace AutoBotUI {
             char const* text,
             bool value,
             int tag,
-            float x,
             float y
         ) {
-            auto label = makeLabel(text, 0.48f);
-            label->setPosition({x, y});
-            m_content->addChild(label);
-
-            auto button = makeButton(
-                value ? "ON" : "OFF",
-                0.42f
-            );
+            auto title = label(text, 0.42f);
+            title->setPosition({250.f, y});
+            m_content->addChild(title);
 
             auto item = CCMenuItemSpriteExtra::create(
-                button,
+                button(value ? "ON" : "OFF", 0.36f),
                 this,
-                menu_selector(AutoBotPanel::onToggle)
+                menu_selector(Panel::onToggle)
             );
 
             item->setTag(tag);
-            item->setPosition({x + 245.f, y});
+            item->setPosition({570.f, y});
 
             menu->addChild(item);
         }
 
-        void addInfo(
-            CCNode* parent,
+        void addNote(
             char const* text,
-            float x,
             float y
         ) {
-            auto label = makeLabel(text, 0.42f);
-            label->setPosition({x, y});
-            parent->addChild(label);
+            auto note = label(text, 0.34f);
+            note->setPosition({250.f, y});
+            m_content->addChild(note);
         }
 
-        void buildContent() {
+        void rebuild() {
             if (m_content) {
                 m_content->removeFromParentAndCleanup(true);
             }
 
             m_content = CCNode::create();
-            m_content->setID("autobot-menu-content");
             this->addChild(m_content);
 
-            auto categoryMenu = CCMenu::create();
-            categoryMenu->setPosition({0.f, 0.f});
-            m_content->addChild(categoryMenu);
+            auto categories = CCMenu::create();
+            categories->setPosition({0.f, 0.f});
+            m_content->addChild(categories);
 
-            addCategoryButton(
-                categoryMenu,
+            addCategory(
+                categories,
                 "LEVEL",
                 Category::Level,
-                455.f
+                330.f
             );
 
-            addCategoryButton(
-                categoryMenu,
+            addCategory(
+                categories,
                 "COUNTER",
                 Category::Counter,
-                390.f
+                275.f
             );
 
-            addCategoryButton(
-                categoryMenu,
+            addCategory(
+                categories,
                 "SPEED",
                 Category::Speed,
-                325.f
+                220.f
             );
 
-            addCategoryButton(
-                categoryMenu,
+            addCategory(
+                categories,
                 "COSMETIC",
                 Category::Cosmetic,
-                260.f
+                165.f
             );
 
-            addCategoryButton(
-                categoryMenu,
+            addCategory(
+                categories,
                 "CONFIG",
                 Category::Config,
-                195.f
+                110.f
             );
 
-            auto optionMenu = CCMenu::create();
-            optionMenu->setPosition({0.f, 0.f});
-            m_content->addChild(optionMenu);
+            auto options = CCMenu::create();
+            options->setPosition({0.f, 0.f});
+            m_content->addChild(options);
 
             if (m_category == Category::Level) {
                 addToggle(
-                    optionMenu,
+                    options,
                     "NOCLIP",
                     state.noclip,
                     1,
-                    380.f,
-                    455.f
+                    330.f
                 );
 
                 addToggle(
-                    optionMenu,
+                    options,
                     "SHOW HITBOXES",
                     state.showHitboxes,
                     2,
-                    380.f,
-                    390.f
+                    275.f
                 );
 
                 addToggle(
-                    optionMenu,
+                    options,
                     "HITBOX ON DEATH",
                     state.showHitboxesOnDeath,
                     3,
-                    380.f,
-                    325.f
+                    220.f
                 );
 
                 addToggle(
-                    optionMenu,
+                    options,
                     "HITBOX TRAIL",
                     state.hitboxTrail,
                     4,
-                    380.f,
-                    260.f
+                    165.f
                 );
 
                 addToggle(
-                    optionMenu,
+                    options,
                     "SHOW TRAJECTORY",
                     state.showTrajectory,
                     5,
-                    380.f,
-                    195.f
+                    110.f
                 );
 
                 addToggle(
-                    optionMenu,
+                    options,
                     "PATHFINDER",
                     state.pathfinder,
                     6,
-                    380.f,
-                    130.f
+                    55.f
                 );
 
-                addInfo(
-                    m_content,
-                    "Experimental features may fail on complex levels.",
-                    380.f,
-                    72.f
+                addNote(
+                    "UI controls are ready; gameplay hooks are not connected yet.",
+                    18.f
                 );
             }
             else if (m_category == Category::Counter) {
                 addToggle(
-                    optionMenu,
+                    options,
                     "FRAME PERFECT COUNTER",
                     state.framePerfect,
                     7,
-                    380.f,
-                    455.f
+                    330.f
                 );
 
                 addToggle(
-                    optionMenu,
+                    options,
                     "ACCURATE PERCENTAGE",
                     state.accuratePercentage,
                     8,
-                    380.f,
-                    390.f
+                    275.f
                 );
 
                 addToggle(
-                    optionMenu,
+                    options,
                     "MACRO RECORD",
                     state.macroRecord,
                     9,
-                    380.f,
-                    325.f
+                    220.f
                 );
 
                 addToggle(
-                    optionMenu,
+                    options,
                     "MACRO REPLAY",
                     state.macroReplay,
                     10,
-                    380.f,
-                    260.f
+                    165.f
                 );
 
-                addInfo(
-                    m_content,
-                    "Window counting will be added to the counter module.",
-                    380.f,
-                    195.f
+                addNote(
+                    "Window counting will be connected after macro playback.",
+                    90.f
                 );
             }
             else if (m_category == Category::Speed) {
                 addToggle(
-                    optionMenu,
+                    options,
                     "SPEED HACK",
                     state.speedHack,
                     11,
-                    380.f,
-                    455.f
+                    330.f
                 );
 
                 addToggle(
-                    optionMenu,
+                    options,
                     "PRACTICE MUSIC SYNC",
                     state.practiceMusicSync,
                     12,
-                    380.f,
-                    390.f
+                    275.f
                 );
 
-                addInfo(
-                    m_content,
+                addNote(
                     "Physics TPS: 240",
-                    380.f,
-                    325.f
+                    210.f
                 );
 
-                addInfo(
-                    m_content,
+                addNote(
                     "Speed: 1.00x",
-                    380.f,
-                    260.f
+                    165.f
                 );
             }
             else if (m_category == Category::Cosmetic) {
                 addToggle(
-                    optionMenu,
+                    options,
                     "ICON HACK",
                     state.iconHack,
                     13,
-                    380.f,
-                    455.f
+                    330.f
                 );
 
                 addToggle(
-                    optionMenu,
+                    options,
                     "LAYOUT MOD",
                     state.layoutMod,
                     14,
-                    380.f,
-                    390.f
+                    275.f
                 );
 
-                addInfo(
-                    m_content,
-                    "Cosmetic tools are English-only.",
-                    380.f,
-                    325.f
+                addNote(
+                    "Cosmetic hooks will be added separately.",
+                    210.f
                 );
             }
-            else if (m_category == Category::Config) {
+            else {
                 addToggle(
-                    optionMenu,
+                    options,
                     "SAFETY NET",
                     state.safetyNet,
                     15,
-                    380.f,
-                    455.f
+                    330.f
                 );
 
-                addInfo(
-                    m_content,
-                    "Pathfinder death limit: 10",
-                    380.f,
-                    390.f
+                addNote(
+                    "PATHFINDER DEATH LIMIT: 10",
+                    275.f
                 );
 
-                addInfo(
-                    m_content,
-                    "Allowed list: AREDL + ILL",
-                    380.f,
-                    325.f
+                addNote(
+                    "ALLOWED LIST: AREDL + ILL",
+                    225.f
                 );
 
-                addInfo(
-                    m_content,
-                    "Settings are saved in a later build.",
-                    380.f,
-                    260.f
+                addNote(
+                    "Settings are not saved yet.",
+                    175.f
                 );
             }
         }
 
     public:
-        static AutoBotPanel* create() {
-            auto ret = new AutoBotPanel();
+        static Panel* create() {
+            auto result = new Panel();
 
             if (
-                ret &&
-                ret->initWithColor(
-                    {15, 18, 32, 245},
-                    850.f,
-                    540.f
+                result &&
+                result->initWithColor(
+                    {12, 16, 28, 248},
+                    PANEL_WIDTH,
+                    PANEL_HEIGHT
                 )
             ) {
-                ret->autorelease();
-                return ret;
+                result->autorelease();
+                return result;
             }
 
-            CC_SAFE_DELETE(ret);
+            CC_SAFE_DELETE(result);
             return nullptr;
         }
 
@@ -414,41 +376,50 @@ namespace AutoBotUI {
                 return false;
             }
 
-            this->setID("autobot-panel");
-
-            auto windowSize = CCDirector::get()->getWinSize();
+            auto size = CCDirector::get()->getWinSize();
 
             this->setPosition({
-                windowSize.width / 2.f - width / 2.f,
-                windowSize.height / 2.f - height / 2.f
+                (size.width - width) / 2.f,
+                (size.height - height) / 2.f
             });
 
-            auto title = makeLabel(
+            this->setID("autobot-panel");
+
+            auto title = label(
                 "AUTOBOT",
-                0.72f
+                0.62f
             );
 
             title->setPosition({
-                32.f,
-                height - 34.f
+                22.f,
+                height - 28.f
             });
 
             this->addChild(title);
 
-            auto close = makeButton(
-                "CLOSE",
-                0.42f
-            );
+            auto closeSprite =
+                CCSprite::createWithSpriteFrameName(
+                    "GJ_closeBtn_001.png"
+                );
+
+            CCSprite* closeButton = closeSprite;
+
+            if (!closeButton) {
+                closeButton = button(
+                    "X",
+                    0.38f
+                );
+            }
 
             auto closeItem = CCMenuItemSpriteExtra::create(
-                close,
+                closeButton,
                 this,
-                menu_selector(AutoBotPanel::onClose)
+                menu_selector(Panel::onClose)
             );
 
             closeItem->setPosition({
-                width - 70.f,
-                height - 32.f
+                width - 30.f,
+                height - 28.f
             });
 
             auto topMenu = CCMenu::create(
@@ -461,11 +432,15 @@ namespace AutoBotUI {
                 0.f
             });
 
-            this->addChild(topMenu, 2);
+            this->addChild(topMenu, 10);
 
-            buildContent();
+            rebuild();
 
             return true;
+        }
+
+        void onClose(CCObject*) {
+            this->removeFromParentAndCleanup(true);
         }
 
         void onCategory(CCObject* sender) {
@@ -475,7 +450,7 @@ namespace AutoBotUI {
                 item->getTag()
             );
 
-            buildContent();
+            rebuild();
         }
 
         void onToggle(CCObject* sender) {
@@ -487,7 +462,8 @@ namespace AutoBotUI {
                     break;
 
                 case 2:
-                    state.showHitboxes = !state.showHitboxes;
+                    state.showHitboxes =
+                        !state.showHitboxes;
                     break;
 
                 case 3:
@@ -496,7 +472,8 @@ namespace AutoBotUI {
                     break;
 
                 case 4:
-                    state.hitboxTrail = !state.hitboxTrail;
+                    state.hitboxTrail =
+                        !state.hitboxTrail;
                     break;
 
                 case 5:
@@ -505,11 +482,13 @@ namespace AutoBotUI {
                     break;
 
                 case 6:
-                    state.pathfinder = !state.pathfinder;
+                    state.pathfinder =
+                        !state.pathfinder;
                     break;
 
                 case 7:
-                    state.framePerfect = !state.framePerfect;
+                    state.framePerfect =
+                        !state.framePerfect;
                     break;
 
                 case 8:
@@ -558,89 +537,150 @@ namespace AutoBotUI {
                     break;
             }
 
-            buildContent();
-        }
-
-        void onClose(CCObject*) {
-            this->removeFromParentAndCleanup(true);
+            rebuild();
         }
     };
 
-    class AutoBotButton final : public CCNode {
+    class DraggableButton final : public CCLayer {
     private:
         CCNode* m_host = nullptr;
+        CCPoint m_startTouch = CCPointZero;
+        CCPoint m_startPosition = CCPointZero;
+        bool m_dragged = false;
 
     public:
-        static AutoBotButton* create(CCNode* host) {
-            auto ret = new AutoBotButton();
+        static DraggableButton* create(CCNode* host) {
+            auto result = new DraggableButton();
 
-            if (ret && ret->init(host)) {
-                ret->autorelease();
-                return ret;
+            if (result && result->init(host)) {
+                result->autorelease();
+                return result;
             }
 
-            CC_SAFE_DELETE(ret);
+            CC_SAFE_DELETE(result);
             return nullptr;
         }
 
         bool init(CCNode* host) {
-            if (!CCNode::init()) {
+            if (!CCLayer::init()) {
                 return false;
             }
 
             m_host = host;
 
-            auto menu = CCMenu::create();
+            this->setContentSize({
+                76.f,
+                76.f
+            });
 
-            auto icon = CCSprite::createWithSpriteFrameName(
-                "GJ_optionsBtn_001.png"
-            );
+            this->setTouchEnabled(true);
+            this->setID("autobot-button-ui");
 
-            if (!icon) {
-                icon = ButtonSprite::create(
-                    "AB",
-                    "goldFont.fnt",
-                    "GJ_button_01.png",
-                    0.62f
+            auto icon =
+                CCSprite::createWithSpriteFrameName(
+                    "GJ_optionsBtn_001.png"
                 );
+
+            if (icon) {
+                icon->setScale(0.55f);
             }
             else {
-                icon->setScale(0.62f);
+                icon = button(
+                    "AB",
+                    0.55f
+                );
             }
 
-            auto item = CCMenuItemSpriteExtra::create(
-                icon,
-                this,
-                menu_selector(AutoBotButton::onPressed)
-            );
+            icon->setPosition({
+                38.f,
+                38.f
+            });
 
-            item->setID("autobot-button");
-
-            menu->addChild(item);
-            menu->setPosition({0.f, 0.f});
-            this->addChild(menu);
+            this->addChild(icon);
 
             auto size = CCDirector::get()->getWinSize();
 
             this->setPosition({
-                size.width - 48.f,
+                size.width - 78.f,
                 size.height * 0.52f
             });
-
-            this->setID("autobot-button-ui");
 
             return true;
         }
 
-        void onPressed(CCObject*) {
+        bool ccTouchBegan(
+            CCTouch* touch,
+            CCEvent*
+        ) override {
+            auto point =
+                this->convertTouchToNodeSpace(touch);
+
             if (
+                point.x < 0.f ||
+                point.y < 0.f ||
+                point.x > 76.f ||
+                point.y > 76.f
+            ) {
+                return false;
+            }
+
+            m_startTouch = touch->getLocation();
+            m_startPosition = this->getPosition();
+            m_dragged = false;
+
+            return true;
+        }
+
+        void ccTouchMoved(
+            CCTouch* touch,
+            CCEvent*
+        ) override {
+            auto now = touch->getLocation();
+            auto delta = now - m_startTouch;
+
+            if (delta.getLength() > 5.f) {
+                m_dragged = true;
+            }
+
+            if (!m_host) {
+                return;
+            }
+
+            auto size = CCDirector::get()->getWinSize();
+            auto position = m_startPosition + delta;
+
+            position.x = std::max(
+                38.f,
+                std::min(
+                    size.width - 38.f,
+                    position.x
+                )
+            );
+
+            position.y = std::max(
+                38.f,
+                std::min(
+                    size.height - 38.f,
+                    position.y
+                )
+            );
+
+            this->setPosition(position);
+        }
+
+        void ccTouchEnded(
+            CCTouch*,
+            CCEvent*
+        ) override {
+            if (
+                m_dragged ||
                 !m_host ||
                 m_host->getChildByID("autobot-panel")
             ) {
                 return;
             }
 
-            auto panel = AutoBotPanel::create();
+            auto panel = Panel::create();
 
             if (panel) {
                 m_host->addChild(
@@ -659,7 +699,7 @@ namespace AutoBotUI {
             return;
         }
 
-        auto button = AutoBotButton::create(layer);
+        auto button = DraggableButton::create(layer);
 
         if (button) {
             layer->addChild(
